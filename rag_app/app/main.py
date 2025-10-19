@@ -1,8 +1,10 @@
 # FastAPI app
 
+import os
 from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
+
 
 from fastapi import FastAPI
 from app.routers import ingest, query

@@ -9,14 +9,16 @@ from mistralai import Mistral
 
 # Initialize Mistral client and embedding model
 api_key = os.environ.get("MISTRAL_API_KEY")
+
 if not api_key:
     raise ValueError("MISTRAL_API_KEY is not set in environment variables.")
-model = "mistral-embed"
+
 client = Mistral(api_key=api_key)
 EMBEDDING_MODEL = "mistral-embed"
 
 VECTOR_DB = []  # simple in-memory vector store
 
+## Driver function
 def process_ingestion(filenames: List[str], file_bytes_list: List[bytes]):
     """Main function to orchestrate PDF ingestion."""
     results = []
@@ -42,6 +44,8 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
     text = ""
     for page in reader.pages:
         text += page.extract_text() or ""
+
+    print(f"Extracted Text: {text}")
     return text.strip()
 
 def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]:
@@ -49,6 +53,9 @@ def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]
     chunks = []
     for i in range(0, len(text), chunk_size - overlap):
         chunks.append(text[i:i + chunk_size])
+
+    print(f"Chunks created: {chunks}")
+
     return chunks
 
 def add_chunks_to_vector_store(chunks):
@@ -60,8 +67,12 @@ def add_chunks_to_vector_store(chunks):
         embeddings_batch_response: EmbeddingResponse from Mistral
     """
     embeddings_batch_response = client.embeddings.create(
-        model=model,
+        model=EMBEDDING_MODEL,
         inputs=chunks
     )
+    print("Embeddings Output: {}".format(embeddings_batch_response))
+
     for chunk, data_obj in zip(chunks, embeddings_batch_response.data):
         VECTOR_DB.append((chunk, data_obj.embedding))
+
+    print(f"VECTOR_DB: {VECTOR_DB}")
