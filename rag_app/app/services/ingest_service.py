@@ -2,14 +2,15 @@
 
 import io
 import re
+import time
 from typing import List
 from PyPDF2 import PdfReader
 
 VECTOR_STORE = []  # simple custom in-memory vector store
 
-## Driver function
-def process_ingestion(filenames: List[str], file_bytes_list: List[bytes]):
-    """Main function to orchestrate PDF ingestion."""
+## Driver Function ##
+def ingest_service_main(filenames: List[str], file_bytes_list: List[bytes]):
+    """Main function to ingest PDFs and load into vector store."""
     results = []
 
     for name, file_bytes in zip(filenames, file_bytes_list):
@@ -27,6 +28,7 @@ def process_ingestion(filenames: List[str], file_bytes_list: List[bytes]):
 
     return results
 
+## Helper Functions ##
 def extract_text_from_pdf(file_bytes: bytes) -> str:
     """
     Extract text from PDF while cleaning up whitespace and line breaks.
@@ -100,12 +102,32 @@ def add_chunks_to_vector_store(chunks, file_name):
         batch = chunks[i:i + BATCH_SIZE]
         print(f"Embedding batch: {batch}")
 
-        # Call Mistral embeddings API on chunk batch
-        embeddings_response = MISTRAL_CLIENT.embeddings.create(
-            model=EMBEDDING_MODEL,
-            inputs=batch
-        )
+        # Implement retry logic for rate limits / capacity errors
+        MAX_RETRIES = 3
+        BACKOFF_FACTOR = 4  # seconds; grows exponentially
 
+        for i in range(MAX_RETRIES):
+            try:
+                embeddings_response = MISTRAL_CLIENT.embeddings.create(
+                    model=EMBEDDING_MODEL,
+                    inputs=batch
+                )
+                break  # success — exit retry loop
+
+            except Exception as e:
+                # Retry only for rate-limit or service capacity errors
+                if "429" in str(e) or "capacity" in str(e).lower():
+                    wait = BACKOFF_FACTOR * (2 ** i)
+                    print(f"Rate limit hit — retrying in {wait} seconds (attempt {i+1}/{MAX_RETRIES})...")
+                    time.sleep(wait)
+                else:
+                    # Other errors should fail fast
+                    raise
+
+        else:
+            # Executed if all retries fail
+            raise RuntimeError(f"Failed to get embeddings for {file_name} after multiple retries.")
+        
         # Append each chunk with its embedding and metadata
         for chunk_text, data_obj in zip(batch, embeddings_response.data):
             VECTOR_STORE.append({
@@ -114,5 +136,3 @@ def add_chunks_to_vector_store(chunks, file_name):
                 "source_file": file_name
             })
             print(f"Stored chunk embedding: {chunk_text[:50]}...")
-
-        # print(f"VECTOR_DB: {VECTOR_DB}")

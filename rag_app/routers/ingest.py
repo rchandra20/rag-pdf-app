@@ -9,8 +9,6 @@ router = APIRouter(prefix="/ingest", tags=["Ingestion"])
 @router.post("/")
 async def ingest_files(files: List[UploadFile] = File(...)):
     """Upload and process multiple files"""
-    print("Hit ingest endpoint")
-    
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded.")
 
