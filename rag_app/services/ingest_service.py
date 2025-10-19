@@ -4,6 +4,17 @@ import io
 from typing import List
 from PyPDF2 import PdfReader
 
+import os
+from mistralai import Mistral
+
+# Initialize Mistral client and embedding model
+api_key = os.environ["MISTRAL_API_KEY"]
+model = "mistral-embed"
+client = Mistral(api_key=api_key)
+EMBEDDING_MODEL = "mistral-embed"
+
+VECTOR_DB = []  # simple in-memory vector store
+
 def process_ingestion(filenames: List[str], file_bytes_list: List[bytes]):
     """Main function to orchestrate PDF ingestion."""
     results = []
@@ -13,7 +24,8 @@ def process_ingestion(filenames: List[str], file_bytes_list: List[bytes]):
 
         text = extract_text_from_pdf(file_bytes)
         chunks = chunk_text(text)
-        store_chunks(chunks, name)
+        add_chunks_to_vector_store(chunks)
+        # store_chunks(chunks, name)
 
         results.append({
             "filename": name,
@@ -37,11 +49,17 @@ def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]
         chunks.append(text[i:i + chunk_size])
     return chunks
 
-
-def store_chunks(chunks: List[str], source_name: str):
-    """Saves chunks to your storage backend (stub for now)."""
-    print(f"Storing {len(chunks)} chunks for {source_name}")
-    # Example:
-    # vector_store.add_texts(chunks, metadata={"source": source_name})
-    # For now, this is just a stub.
-    return True
+def add_chunks_to_vector_store(chunks):
+    """
+    Store each text chunk along with its embedding vector.
+    
+    Args:
+        chunks (List[str]): Original text chunks
+        embeddings_batch_response: EmbeddingResponse from Mistral
+    """
+    embeddings_batch_response = client.embeddings.create(
+        model=model,
+        inputs=chunks
+    )
+    for chunk, data_obj in zip(chunks, embeddings_batch_response.data):
+        VECTOR_DB.append((chunk, data_obj.embedding))

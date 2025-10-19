@@ -1,7 +1,7 @@
 # FastAPI route triggered on /query endpoint
 
 from fastapi import APIRouter, Form, HTTPException
-from services.query_service import query_documents
+from services.query_service import query_vector_store
 
 router = APIRouter(prefix="/query", tags=["Querying"])
 
@@ -14,7 +14,7 @@ async def query_endpoint(question: str = Form(...)):
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
     
     try:
-        result = query_documents(question)
-        return result
+        answer = query_vector_store(question)
+        return answer
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
