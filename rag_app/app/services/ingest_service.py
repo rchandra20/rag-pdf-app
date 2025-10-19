@@ -8,7 +8,9 @@ import os
 from mistralai import Mistral
 
 # Initialize Mistral client and embedding model
-api_key = os.environ["MISTRAL_API_KEY"]
+api_key = os.environ.get("MISTRAL_API_KEY")
+if not api_key:
+    raise ValueError("MISTRAL_API_KEY is not set in environment variables.")
 model = "mistral-embed"
 client = Mistral(api_key=api_key)
 EMBEDDING_MODEL = "mistral-embed"

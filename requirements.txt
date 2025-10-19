@@ -4,3 +4,5 @@ streamlit
 requests 
 PyPDF2
 mistralai
+python-dotenv
+python-multipart

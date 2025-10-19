@@ -1,11 +1,12 @@
 # FastAPI app
 
-from fastapi import FastAPI
 from dotenv import load_dotenv
-from routers import ingest, query
-
 # Load environment variables from .env file
 load_dotenv()
+
+from fastapi import FastAPI
+from app.routers import ingest, query
+
 
 # Instantiate FastAPI app
 app = FastAPI(title="RAG Pipeline")

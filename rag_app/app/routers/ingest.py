@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from typing import List
-from services.ingest_service import process_ingestion
+from app.services.ingest_service import process_ingestion
 
 router = APIRouter(prefix="/ingest", tags=["Ingestion"])
 

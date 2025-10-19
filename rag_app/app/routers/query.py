@@ -1,7 +1,7 @@
 # FastAPI route triggered on /query endpoint
 
 from fastapi import APIRouter, Form, HTTPException
-from services.query_service import query_vector_store
+from app.services.query_service import query_vector_store
 
 router = APIRouter(prefix="/query", tags=["Querying"])
 
