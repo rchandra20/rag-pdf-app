@@ -24,3 +24,7 @@ app = FastAPI(title="RAG App")
 # Include 2 API Endpoints: Ingest and Query
 app.include_router(ingest.router)
 app.include_router(query.router)
+
+# Initialize vector store on startup
+from app.services.ingest_service import VECTOR_STORE
+print(f"FastAPI app started with {len(VECTOR_STORE)} entries in vector store")

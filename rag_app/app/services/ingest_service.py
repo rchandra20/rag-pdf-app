@@ -3,10 +3,38 @@
 import io
 import re
 import time
+import json
+import os
 from typing import List
 from PyPDF2 import PdfReader
 
+VECTOR_STORE_FILE = "vector_store.json"
 VECTOR_STORE = []  # simple custom in-memory vector store
+
+def load_vector_store():
+    """Load vector store from JSON file."""
+    if os.path.exists(VECTOR_STORE_FILE):
+        try:
+            with open(VECTOR_STORE_FILE, 'r') as f:
+                loaded_store = json.load(f)
+                print(f"Loaded vector store with {len(loaded_store)} entries from {VECTOR_STORE_FILE}")
+                return loaded_store
+        except Exception as e:
+            print(f"Error loading vector store: {e}")
+            return []
+    return []
+
+def save_vector_store():
+    """Save vector store to JSON file."""
+    try:
+        with open(VECTOR_STORE_FILE, 'w') as f:
+            json.dump(VECTOR_STORE, f)
+        print(f"Vector store saved with {len(VECTOR_STORE)} entries to {VECTOR_STORE_FILE}")
+    except Exception as e:
+        print(f"Error saving vector store: {e}")
+
+# Initialize vector store on module import
+VECTOR_STORE = load_vector_store()
 
 ## Driver Function ##
 def ingest_service_main(filenames: List[str], file_bytes_list: List[bytes]):
@@ -104,7 +132,7 @@ def add_chunks_to_vector_store(chunks, file_name):
 
         # Implement retry logic for rate limits / capacity errors
         MAX_RETRIES = 3
-        BACKOFF_FACTOR = 4  # seconds; grows exponentially
+        BACKOFF_FACTOR = 10  # seconds; grows exponentially
 
         for i in range(MAX_RETRIES):
             try:
@@ -136,3 +164,6 @@ def add_chunks_to_vector_store(chunks, file_name):
                 "source_file": file_name
             })
             print(f"Stored chunk embedding: {chunk_text[:50]}...")
+    
+    # Save the vector store after all chunks are processed
+    save_vector_store()
