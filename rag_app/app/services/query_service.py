@@ -1,6 +1,9 @@
 # Logic to handle searching the vector store against user queries
 
 from .ingest_service import VECTOR_STORE # shared in-memory vector DB
+import json
+import os
+from datetime import datetime
 
 ## Driver Function ##
 def query_service_main(query: str):
@@ -31,11 +34,7 @@ def query_service_main(query: str):
         # Perform hybrid search (semantic + keyword) for better comprehensive answers
         retrieved_chunks = hybrid_search(
             query, 
-            query_embedding, 
-            top_k=5, 
-            sim_threshold=0.6,
-            semantic_weight=0.8,
-            keyword_boost=0.2
+            query_embedding
         )
 
         # Post-process results to improve ranking
@@ -100,9 +99,6 @@ def transform_query(text: str) -> str:
     """Transform and expand the query for better retrieval."""
     from app.main import MISTRAL_CLIENT, LANGUAGE_MODEL
     
-    # Simple preprocessing
-    processed_text = text.lower().strip()
-    
     # Query expansion for better retrieval
     expansion_prompt = f"""Given the user query: "{text}"
 
@@ -131,13 +127,13 @@ Return only the additional terms, separated by commas. Do not repeat the origina
         
     except Exception as e:
         print(f"Query expansion failed: {e}")
-        return processed_text
+        return text
 
 def embed_query(text: str):
     from app.main import MISTRAL_CLIENT, EMBEDDING_MODEL
     """Generate embedding vector for a single text string."""
     response = MISTRAL_CLIENT.embeddings.create(model=EMBEDDING_MODEL, inputs=[text])
-    return response.data[0].embedding  # 1024-dim vector
+    return response.data[0].embedding
 
 def normalize(vec):
     """Return L2-normalized vector."""
@@ -157,18 +153,18 @@ def semantic_search(query_embedding, top_k: int = 3, similarity_threshold: float
     for record in VECTOR_STORE:
         chunk_embedding = normalize(record["embedding"])
         similarity = cosine_similarity(query_embedding, chunk_embedding)
+
+        # Ensure chunk meets similarity threshold
         if similarity >= similarity_threshold:
             similarities.append({
                 "chunk": record["chunk"],
                 "source_file": record["source_file"],
-                "similarity": similarity
+                "score": similarity
             })
 
-    similarities.sort(key=lambda x: x["similarity"], reverse=True)
+    similarities.sort(key=lambda x: x["score"], reverse=True)
     return similarities[:top_k]
 
-
-# TODO: Work on this more
 def keyword_search(query_text: str, top_k: int = 3):
     query_words = set(query_text.lower().split())
     results = []
@@ -187,51 +183,64 @@ def keyword_search(query_text: str, top_k: int = 3):
     results.sort(key=lambda x: x["score"], reverse=True)
     return results[:top_k]
 
-# TODO: improve this
 def hybrid_search(
     query_text: str,
     query_embedding,
-    top_k: int = 3,
-    sim_threshold: float = 0.7,
-    semantic_weight: float = 1.0,
-    keyword_boost: float = 0.2  # only additive, never subtracts
+    top_k: int = 5,
+    semantic_weight: float = 0.7,
+    keyword_weight: float = 0.3
 ):
     """
-    Combine semantic and keyword search results.
-    Keyword matches only boost the semantic score.
+    Simple hybrid search that combines semantic and keyword results with weighted scores.
     """
-
-    semantic_results = semantic_search(
-        query_embedding, top_k=top_k, similarity_threshold=sim_threshold
-    )
-    keyword_results = keyword_search(query_text, top_k=top_k)
-
-    combined = {}
-
-    # Apply semantic score first
-    for r in semantic_results:
-        combined[r["chunk"]] = {
-            "chunk": r["chunk"],
-            "source_file": r["source_file"],
-            "score": r["similarity"] * semantic_weight
+    # Get more results from each method to have better candidates
+    semantic_results = semantic_search(query_embedding, top_k=top_k*2, similarity_threshold=0.5)
+    keyword_results = keyword_search(query_text, top_k=top_k*2)
+    
+    # Create a combined score for each unique chunk
+    chunk_scores = {}
+    
+    # Add semantic scores
+    for result in semantic_results:
+        chunk_key = result["chunk"]
+        chunk_scores[chunk_key] = {
+            "chunk": result["chunk"],
+            "source_file": result["source_file"],
+            "semantic_score": result["score"],
+            "keyword_score": 0.0,
+            "combined_score": result["score"] * semantic_weight
         }
-
-    # Apply keyword boost (only additive)
-    for r in keyword_results:
-        if r["chunk"] in combined:
-            combined[r["chunk"]]["score"] += r["score"] * keyword_boost
+    
+    # Add keyword scores and combine
+    for result in keyword_results:
+        chunk_key = result["chunk"]
+        if chunk_key in chunk_scores:
+            # Chunk exists from semantic search - add keyword score
+            chunk_scores[chunk_key]["keyword_score"] = result["score"]
+            chunk_scores[chunk_key]["combined_score"] += result["score"] * keyword_weight
         else:
-            # If semantic search didn't pick this chunk, we can optionally include it
-            # with only keyword score boost
-            combined[r["chunk"]] = {
-                "chunk": r["chunk"],
-                "source_file": r["source_file"],
-                "score": r["score"] * keyword_boost
+            # Chunk only found by keyword search
+            chunk_scores[chunk_key] = {
+                "chunk": result["chunk"],
+                "source_file": result["source_file"],
+                "semantic_score": 0.0,
+                "keyword_score": result["score"],
+                "combined_score": result["score"] * keyword_weight
             }
-
-    # Sort descending by combined score
-    final_results = sorted(combined.values(), key=lambda x: x["score"], reverse=True)
-    return final_results[:top_k]
+    
+    # Sort by combined score and return top_k
+    sorted_results = sorted(chunk_scores.values(), key=lambda x: x["combined_score"], reverse=True)
+    
+    # Simplify output format
+    final_results = []
+    for result in sorted_results[:top_k]:
+        final_results.append({
+            "chunk": result["chunk"],
+            "source_file": result["source_file"],
+            "score": result["combined_score"]
+        })
+    
+    return final_results
 
 def post_process_results(results):
     """Merge and re-rank the results from the vector store search."""
@@ -249,23 +258,66 @@ def post_process_results(results):
             seen_chunks.add(chunk_content)
             unique_results.append(result)
     
-    # Re-rank by similarity score (they should already be sorted, but ensure it)
-    unique_results.sort(key=lambda x: x.get('similarity', x.get('score', 0)), reverse=True)
+    # Merge adjacent chunks from same source
+    merged_results = []
+    current_group = []
+    current_source = None
+    
+    for result in unique_results:
+        source = result['source_file']
+        
+        # If same source, add to current group
+        if source == current_source:
+            current_group.append(result)
+        else:
+            # Process previous group if exists
+            if current_group:
+                if len(current_group) > 1:
+                    # Merge multiple chunks
+                    combined_text = " ".join([chunk['chunk'] for chunk in current_group])
+                    max_score = max([chunk.get('similarity', chunk.get('score', 0)) for chunk in current_group])
+                    merged_results.append({
+                        'chunk': combined_text,
+                        'source_file': current_group[0]['source_file'],
+                        'score': max_score
+                    })
+                else:
+                    # Single chunk, keep as is
+                    merged_results.append(current_group[0])
+            
+            # Start new group
+            current_group = [result]
+            current_source = source
+    
+    # Process last group
+    if current_group:
+        if len(current_group) > 1:
+            # Merge multiple chunks
+            combined_text = " ".join([chunk['chunk'] for chunk in current_group])
+            max_score = max([chunk.get('similarity', chunk.get('score', 0)) for chunk in current_group])
+            merged_results.append({
+                'chunk': combined_text,
+                'source_file': current_group[0]['source_file'],
+                'score': max_score
+            })
+        else:
+            # Single chunk, keep as is
+            merged_results.append(current_group[0])
+    
+    # Re-rank by similarity score
+    merged_results.sort(key=lambda x: x.get('similarity', x.get('score', 0)), reverse=True)
     
     # Filter out very low-quality results
     filtered_results = [
-        result for result in unique_results 
+        result for result in merged_results 
         if result.get('similarity', result.get('score', 0)) > 0.3
     ]
     
-    return filtered_results
+    return filtered_results 
 
 def generate_final_answer(query_text, results):
     """Generate comprehensive answer from the top RAG search results with LLM."""
     from app.main import MISTRAL_CLIENT, LANGUAGE_MODEL
-    import json
-    import os
-    from datetime import datetime
 
     if not results:
         return "I couldn't find relevant information to answer your question in the knowledge base."
@@ -273,30 +325,30 @@ def generate_final_answer(query_text, results):
     # Prepare context from retrieved chunks
     context_chunks = []
     sources = []
+
+    print(f"Final Chunk Results: {results}")
     
-    for i, result in enumerate(results, 1):
-        context_chunks.append(f"[Source {i}] {result['chunk']}")
-        sources.append(result.get('source_file', 'Unknown source'))
+    for result in results:
+        source_file = result.get('source_file', 'Unknown source')
+        context_chunks.append(f"[{source_file}] {result['chunk']}")
+        sources.append(source_file)
     
     context = "\n\n".join(context_chunks)
     source_list = ", ".join(set(sources))
 
-    system_prompt = """You are an expert AI assistant that provides comprehensive, accurate, and well-structured answers based on retrieved information from a knowledge base. Your role is to:
+    system_prompt = """You are an expert AI assistant that provides concise, accurate answers based on retrieved information from a knowledge base. Your role is to:
 
-1. **Synthesize Information**: Combine and analyze information from multiple sources to create a coherent, comprehensive answer
-2. **Provide Context**: Give background information and explain concepts when helpful
-3. **Structure Your Response**: Organize your answer logically with clear sections, bullet points, or numbered lists when appropriate
-4. **Cite Sources**: Always reference which sources support your claims using [Source X] format
-5. **Be Thorough**: Address all aspects of the question and provide relevant details
-6. **Maintain Accuracy**: Only use information from the provided context, and clearly state when information is incomplete
-7. **Be Helpful**: Provide actionable insights, examples, or recommendations when relevant
+1. **Be Concise**: Provide direct, clear answers without unnecessary elaboration
+2. **Stay Focused**: Answer only what was asked, avoid tangents
+3. **Be Accurate**: Only use information from the provided context
+4. **Cite Sources**: Reference sources using [filename.pdf] format when making claims
+5. **Be Complete**: Include all essential information to fully answer the question
 
 **Response Guidelines:**
-- Start with a direct answer to the question
-- Provide detailed explanations with supporting evidence
-- Use clear, professional language
-- Include relevant examples or details from the sources
-- If the context doesn't fully answer the question, acknowledge limitations
+- Start with a direct, brief answer
+- Use bullet points or numbered lists only when the information naturally fits that format
+- Keep sentences clear and concise
+- If the context doesn't fully answer the question, acknowledge limitations briefly
 - End with source citations
 
 **Available Sources:** {sources}
@@ -304,9 +356,9 @@ def generate_final_answer(query_text, results):
 **Context from Knowledge Base:**
 {context}
 
-Now, provide a comprehensive answer to the user's question based on the retrieved information."""
+Now, provide a concise answer to the user's question based on the retrieved information."""
 
-    user_prompt = f"Question: {query_text}\n\nPlease provide a comprehensive answer based on the retrieved information above."
+    user_prompt = f"Question: {query_text}\n\nPlease provide a concise answer based on the retrieved information above."
 
     chat_response = MISTRAL_CLIENT.chat.complete(
         model=LANGUAGE_MODEL,

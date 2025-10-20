@@ -11,12 +11,10 @@ load_dotenv()
 
 # Initialize Mistral client and models
 API_KEY = os.environ.get("MISTRAL_API_KEY")
-if not API_KEY:
-    raise RuntimeError("MISTRAL_API_KEY not set in environment variables.")
 
 MISTRAL_CLIENT = Mistral(api_key=API_KEY)
-EMBEDDING_MODEL = "mistral-embed"
-LANGUAGE_MODEL = "mistral-small-2503"
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL")
+LANGUAGE_MODEL = os.environ.get("LANGUAGE_MODEL")
 
 # Instantiate FastAPI app
 app = FastAPI(title="RAG App")

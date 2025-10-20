@@ -7,11 +7,11 @@ from typing import List
 FASTAPI_URL = "http://localhost:8000"
 
 st.set_page_config(
-    page_title="RAG Pipeline App",
+    page_title="RAG App",
     layout="wide"
 )
 
-st.title("RAG Pipeline App")
+st.title("RAG App")
 st.markdown("Upload PDFs and query your knowledge base!")
 
 # Sidebar for file upload
@@ -115,15 +115,15 @@ if submit_button and query_text.strip():
                 st.subheader("Answer:")
                 st.write(result.get("answer", "No answer generated"))
                 
-                # Display metadata if available
-                if "sources" in result and result["sources"]:
-                    st.subheader("Sources:")
-                    sources = list(set(result["sources"]))  # Remove duplicates
-                    for source in sources:
-                        st.write(f"• {source}")
+                # # Display metadata if available
+                # if "sources" in result and result["sources"]:
+                #     st.subheader("Sources:")
+                #     sources = list(set(result["sources"]))  # Remove duplicates
+                #     for source in sources:
+                #         st.write(f"• {source}")
                 
-                if "retrieved_chunks" in result:
-                    st.info(f"Retrieved {result['retrieved_chunks']} relevant chunks")
+                # if "retrieved_chunks" in result:
+                #     st.info(f"Retrieved {result['retrieved_chunks']} relevant chunks")
                     
             else:
                 st.error(f"Error: {response.text}")
