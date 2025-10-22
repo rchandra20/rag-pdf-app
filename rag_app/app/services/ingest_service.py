@@ -7,9 +7,10 @@ import json
 import os
 from typing import List
 from PyPDF2 import PdfReader
+import uuid
 
-VECTOR_STORE_FILE = "vector_store.json"
-VECTOR_STORE = []  # simple custom in-memory vector store
+VECTOR_STORE_FILE = "vector_store.json" # file to persist vector store across app runs
+VECTOR_STORE = []  # simple custom vector store in-memory
 
 def load_vector_store():
     """Load vector store from JSON file."""
@@ -40,7 +41,8 @@ VECTOR_STORE = load_vector_store()
 def ingest_service_main(filenames: List[str], file_bytes_list: List[bytes]):
     """Main function to ingest PDFs and load into vector store."""
     results = []
-
+    
+    # Iterate through each file and process with service functions
     for name, file_bytes in zip(filenames, file_bytes_list):
         print(f"Processing file: {name}")
 
@@ -107,9 +109,6 @@ def chunk_text(
     if current_chunk:
         chunks.append(" ".join(current_chunk))
 
-    # Optionally filter out tiny chunks
-    # chunks = [c for c in chunks if len(c.split()) > 10]
-
     return chunks
 
 
@@ -119,8 +118,8 @@ def add_chunks_to_vector_store(chunks, file_name):
     Store each text chunk along with its embedding vector.
     
     Args:
-        chunks (List[str]): Original text chunks
-        embeddings_batch_response: EmbeddingResponse from Mistral
+        chunks: Original text chunks from uploaded file
+        embeddings_response: EmbeddingResponse from Mistral
     """
 
     # Set custom batch size to avoid Mistral service capacity limits
@@ -132,7 +131,7 @@ def add_chunks_to_vector_store(chunks, file_name):
 
         # Implement retry logic for rate limits / capacity errors
         MAX_RETRIES = 3
-        BACKOFF_FACTOR = 10  # seconds; grows exponentially
+        BACKOFF_FACTOR = 10  # seconds; grows exponentially on each try
 
         for i in range(MAX_RETRIES):
             try:
@@ -159,6 +158,7 @@ def add_chunks_to_vector_store(chunks, file_name):
         # Append each chunk with its embedding and metadata
         for chunk_text, data_obj in zip(batch, embeddings_response.data):
             VECTOR_STORE.append({
+                "id": str(uuid.uuid4()),  # Globally unique ID for traceability
                 "chunk": chunk_text,
                 "embedding": data_obj.embedding,
                 "source_file": file_name

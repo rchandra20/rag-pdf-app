@@ -1,6 +1,6 @@
 # Logic to handle searching the vector store against user queries
 
-from .ingest_service import VECTOR_STORE # shared in-memory vector DB
+from .ingest_service import VECTOR_STORE # custom vector store
 import json
 import os
 from datetime import datetime
@@ -34,7 +34,10 @@ def query_service_main(query: str):
         # Perform hybrid search (semantic + keyword) for better comprehensive answers
         retrieved_chunks = hybrid_search(
             query, 
-            query_embedding
+            query_embedding,
+            5, # top_k
+            0.7, # Semantic weight in score
+             0.3 # Keyword weight in score
         )
 
         # Post-process results to improve ranking
@@ -140,13 +143,14 @@ def normalize(vec):
     norm = sum(x**2 for x in vec) ** 0.5
     return [x / norm for x in vec] if norm > 0 else vec
 
-def semantic_search(query_embedding, top_k: int = 3, similarity_threshold: float = 0.7):
+def semantic_search(query_embedding, top_k, similarity_threshold: float = 0.7):
     """Perform semantic search over VECTOR_STORE with normalized embeddings."""
     
     def cosine_similarity(a, b):
         dot_product = sum(x * y for x, y in zip(a, b))
         return max(0.0, dot_product)  # clip negatives to 0
 
+    #  Normalize to guarantee consistent similarity scores between 0 and 1
     query_embedding = normalize(query_embedding)
     similarities = []
 
@@ -165,7 +169,8 @@ def semantic_search(query_embedding, top_k: int = 3, similarity_threshold: float
     similarities.sort(key=lambda x: x["score"], reverse=True)
     return similarities[:top_k]
 
-def keyword_search(query_text: str, top_k: int = 3):
+def keyword_search(query_text: str, top_k):
+    """Perform keyword search over VECTOR_STORE."""
     query_words = set(query_text.lower().split())
     results = []
 
@@ -186,9 +191,9 @@ def keyword_search(query_text: str, top_k: int = 3):
 def hybrid_search(
     query_text: str,
     query_embedding,
-    top_k: int = 5,
-    semantic_weight: float = 0.7,
-    keyword_weight: float = 0.3
+    top_k,
+    semantic_weight,
+    keyword_weight
 ):
     """
     Simple hybrid search that combines semantic and keyword results with weighted scores.
@@ -404,5 +409,5 @@ Now, provide a concise answer to the user's question based on the retrieved info
     return {
         "answer": generated_answer,
         "sources": sources,
-        "retrieved_chunks": len(results)
+        "retrieved_chunks": results
     }

@@ -2,9 +2,13 @@ import streamlit as st
 import requests
 import json
 from typing import List
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # FastAPI base URL
-FASTAPI_URL = "http://localhost:8000"
+FASTAPI_URL = os.getenv("FASTAPI_URL")
 
 st.set_page_config(
     page_title="RAG App",
