@@ -56,7 +56,7 @@ Sample Queries:
 3. Why is value over the long term important?
 4. How is customer obsession shown by Amazon?
 
-### Step 6: Observe generated answers! You can use the chunk ids to trace the chunks being used by looking at 'query_log.json'
+### Step 6: Observe generated answers! You can use the chunk ids to trace the chunks being used by looking at `query_log.json`
 
 ![Generated Answer](assets/generated_answer.png)
 
@@ -66,9 +66,7 @@ Sample Queries:
 
 ### Query Logging
 
-All queries and results made in RAG App can be viewed in 'query_log.json'. This allows for
-enhanced traceability as to which chunks are contributing to answer. To clear this query log
-run the following command:
+All queries and results made in RAG App can be viewed in `query_log.json`. This allows for enhanced traceability as to which chunks are contributing to answer. To clear this query log run the following command:
 
 ```bash
 cd rag_app/
@@ -77,13 +75,14 @@ cd rag_app/
 
 ### Vector Store
 
-File chunks are persisted to 'vector_store.json' upon ingestion. To empty the custom vector
-store run the following command:
+File chunks are persisted to `vector_store.json` upon file ingestion. To empty the custom vector store run the following command:
 
 ```bash
 cd rag_app/
 : > vector_store.json
 ```
+
+Then stop the RAG App and run again with `./run.sh`
 
 ### Software Library Links
 [FastAPI](https://fastapi.tiangolo.com/) - Building backend API endpoints  
