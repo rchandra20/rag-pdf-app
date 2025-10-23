@@ -27,7 +27,6 @@ cleanup() {
 trap cleanup INT
 
 # Start FastAPI server in background
-cd rag_app
 echo "Starting FastAPI server..."
 uvicorn app.main:app --reload --host 0.0.0.0 --port $FASTAPI_PORT &
 FASTAPI_PID=$!

@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import json
-from typing import List
 from dotenv import load_dotenv
 import os
 
@@ -16,30 +15,11 @@ st.set_page_config(
 )
 
 st.title("RAG App")
-st.markdown("Upload PDFs and query your knowledge base!")
 
 # Sidebar for file upload
-st.sidebar.header("File Upload")
-st.sidebar.markdown("Upload PDF files to add to your knowledge base")
+st.sidebar.header("PDF File Upload")
 
 # Show ingested files
-st.sidebar.markdown("### Ingested Files")
-try:
-    with open("vector_store.json", "r") as f:
-        vector_data = json.load(f)
-        if vector_data:
-            # Get unique source files
-            sources = list(set([item["source_file"] for item in vector_data]))
-            st.sidebar.success(f"{len(vector_data)} chunks from {len(sources)} files")
-            for source in sources:
-                count = len([item for item in vector_data if item["source_file"] == source])
-                st.sidebar.write(f"• {source} ({count} chunks)")
-        else:
-            st.sidebar.info("No files ingested yet")
-except FileNotFoundError:
-    st.sidebar.info("No files ingested yet")
-except Exception as e:
-    st.sidebar.error("Error reading vector store")
 
 uploaded_files = st.sidebar.file_uploader(
     "Choose PDF files",
@@ -86,8 +66,26 @@ if uploaded_files:
                 except Exception as e:
                     st.sidebar.error(f"Error: {str(e)}")
 
+st.sidebar.markdown("### Ingested Files")
+try:
+    with open("vector_store.json", "r") as f:
+        vector_data = json.load(f)
+        if vector_data:
+            # Get unique source files
+            sources = list(set([item["source_file"] for item in vector_data]))
+            st.sidebar.success(f"{len(vector_data)} chunks from {len(sources)} files")
+            for source in sources:
+                count = len([item for item in vector_data if item["source_file"] == source])
+                st.sidebar.write(f"• {source} ({count} chunks)")
+        else:
+            st.sidebar.info("No files ingested yet")
+except FileNotFoundError:
+    st.sidebar.info("No files ingested yet")
+except Exception as e:
+    st.sidebar.error("Error reading vector store")
+
 # Main query interface
-st.header("Query Your Knowledge Base")
+st.header2("Query Your Knowledge Base")
 
 # Query input
 query_text = st.text_area(
@@ -119,15 +117,14 @@ if submit_button and query_text.strip():
                 st.subheader("Answer:")
                 st.write(result.get("answer", "No answer generated"))
                 
-                # # Display metadata if available
-                # if "sources" in result and result["sources"]:
-                #     st.subheader("Sources:")
-                #     sources = list(set(result["sources"]))  # Remove duplicates
-                #     for source in sources:
-                #         st.write(f"• {source}")
+                # # Display useful metadata if available
+                if "sources" in result and result["sources"]:
+                    st.subheader("Sources:")
+                    for source in result["sources"]:
+                        st.write(f"• {source}")
                 
-                # if "retrieved_chunks" in result:
-                #     st.info(f"Retrieved {result['retrieved_chunks']} relevant chunks")
+                if "retrieved_chunks" in result:
+                    st.info(f"Retrieved chunks with id: {result['retrieved_chunks']}")
                     
             else:
                 st.error(f"Error: {response.text}")
@@ -139,18 +136,6 @@ if submit_button and query_text.strip():
 
 elif submit_button and not query_text.strip():
     st.warning("Please enter a question before submitting.")
-
-# Instructions
-st.markdown("---")
-st.markdown("### Instructions:")
-st.markdown("""
-1. **Upload Files**: Use the sidebar to upload PDF files to your knowledge base
-2. **Ingest**: Click "Ingest Files" to process and add them to the vector store
-3. **Query**: Type your question in the text area and click "Submit Query"
-4. **View Results**: Get answers based on your uploaded documents
-
-**Note**: Make sure your FastAPI server is running on `http://localhost:8000`
-""")
 
 # Status indicator
 st.markdown("---")

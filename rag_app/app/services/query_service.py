@@ -31,13 +31,13 @@ def query_service_main(query: str):
         # Embed the expanded question
         query_embedding = embed_query(expanded_query)
     
-        # Perform hybrid search (semantic + keyword) for better comprehensive answers
+        # Perform hybrid search (semantic + keyword) for better results
         retrieved_chunks = hybrid_search(
             query, 
             query_embedding,
             5, # top_k
             0.7, # Semantic weight in score
-             0.3 # Keyword weight in score
+            0.3 # Keyword weight in score
         )
 
         # Post-process results to improve ranking
@@ -163,7 +163,8 @@ def semantic_search(query_embedding, top_k, similarity_threshold: float = 0.7):
             similarities.append({
                 "chunk": record["chunk"],
                 "source_file": record["source_file"],
-                "score": similarity
+                "score": similarity,             
+                "chunk_ids": [record["id"]]       
             })
 
     similarities.sort(key=lambda x: x["score"], reverse=True)
@@ -182,7 +183,8 @@ def keyword_search(query_text: str, top_k):
             results.append({
                 "chunk": record["chunk"],
                 "source_file": record["source_file"],
-                "score": score
+                "score": score,
+                "chunk_ids": [record["id"]]  
             })
 
     results.sort(key=lambda x: x["score"], reverse=True)
@@ -213,7 +215,8 @@ def hybrid_search(
             "source_file": result["source_file"],
             "semantic_score": result["score"],
             "keyword_score": 0.0,
-            "combined_score": result["score"] * semantic_weight
+            "combined_score": result["score"] * semantic_weight,
+            "chunk_ids": result["chunk_ids"]
         }
     
     # Add keyword scores and combine
@@ -230,7 +233,8 @@ def hybrid_search(
                 "source_file": result["source_file"],
                 "semantic_score": 0.0,
                 "keyword_score": result["score"],
-                "combined_score": result["score"] * keyword_weight
+                "combined_score": result["score"] * keyword_weight,
+                "chunk_ids": result.get("chunk_ids", [])   # propagate here
             }
     
     # Sort by combined score and return top_k
@@ -242,53 +246,46 @@ def hybrid_search(
         final_results.append({
             "chunk": result["chunk"],
             "source_file": result["source_file"],
-            "score": result["combined_score"]
+            "score": result["combined_score"],
+            "chunk_ids": result["chunk_ids"]
         })
     
     return final_results
 
-def post_process_results(results):
-    """Merge and re-rank the results from the vector store search."""
+def post_process_results(results, similarity_threshold: float = 0.3):
+    """Merge and re-rank the results from the vector store search, preserving chunk IDs."""
     
     if not results:
-        return results
-    
-    # Remove duplicates based on chunk content
-    seen_chunks = set()
-    unique_results = []
-    
-    for result in results:
-        chunk_content = result['chunk'].strip()
-        if chunk_content not in seen_chunks:
-            seen_chunks.add(chunk_content)
-            unique_results.append(result)
+        return "No results were found in knowledge base"
     
     # Merge adjacent chunks from same source
     merged_results = []
     current_group = []
     current_source = None
     
-    for result in unique_results:
+    for result in results:
         source = result['source_file']
         
-        # If same source, add to current group
         if source == current_source:
             current_group.append(result)
         else:
-            # Process previous group if exists
+            # Process previous group
             if current_group:
                 if len(current_group) > 1:
-                    # Merge multiple chunks
                     combined_text = " ".join([chunk['chunk'] for chunk in current_group])
                     max_score = max([chunk.get('similarity', chunk.get('score', 0)) for chunk in current_group])
                     merged_results.append({
                         'chunk': combined_text,
                         'source_file': current_group[0]['source_file'],
-                        'score': max_score
+                        'score': max_score,
+                        'chunk_ids': [cid for chunk in current_group for cid in chunk['chunk_ids']]
                     })
                 else:
-                    # Single chunk, keep as is
-                    merged_results.append(current_group[0])
+                    single_chunk = current_group[0]
+                    merged_results.append({
+                        **single_chunk,
+                        'chunk_ids': single_chunk['chunk_ids']
+                    })
             
             # Start new group
             current_group = [result]
@@ -297,17 +294,20 @@ def post_process_results(results):
     # Process last group
     if current_group:
         if len(current_group) > 1:
-            # Merge multiple chunks
             combined_text = " ".join([chunk['chunk'] for chunk in current_group])
             max_score = max([chunk.get('similarity', chunk.get('score', 0)) for chunk in current_group])
             merged_results.append({
                 'chunk': combined_text,
                 'source_file': current_group[0]['source_file'],
-                'score': max_score
+                'score': max_score,
+                'chunk_ids': [cid for chunk in current_group for cid in chunk['chunk_ids']]
             })
         else:
-            # Single chunk, keep as is
-            merged_results.append(current_group[0])
+            single_chunk = current_group[0]
+            merged_results.append({
+                **single_chunk,
+                'chunk_ids': single_chunk['chunk_ids']
+            })
     
     # Re-rank by similarity score
     merged_results.sort(key=lambda x: x.get('similarity', x.get('score', 0)), reverse=True)
@@ -315,7 +315,7 @@ def post_process_results(results):
     # Filter out very low-quality results
     filtered_results = [
         result for result in merged_results 
-        if result.get('similarity', result.get('score', 0)) > 0.3
+        if result.get('similarity', result.get('score', 0)) >= similarity_threshold
     ]
     
     return filtered_results 
@@ -377,13 +377,13 @@ Now, provide a concise answer to the user's question based on the retrieved info
 
     generated_answer = chat_response.choices[0].message.content
     
-    # Log query and answer to JSON file
+    # Log RAG query to query_log.json
     query_log = {
         "timestamp": datetime.now().isoformat(),
         "query": query_text,
         "answer": generated_answer,
         "sources": sources,
-        "retrieved_chunks": len(results)
+        "retrieved_chunks": [cid for r in results for cid in r['chunk_ids']]
     }
     
     try:
@@ -409,5 +409,5 @@ Now, provide a concise answer to the user's question based on the retrieved info
     return {
         "answer": generated_answer,
         "sources": sources,
-        "retrieved_chunks": results
+        "retrieved_chunks": [cid for r in results for cid in r['chunk_ids']]
     }

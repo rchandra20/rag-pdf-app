@@ -9,35 +9,61 @@ from typing import List
 from PyPDF2 import PdfReader
 import uuid
 
-VECTOR_STORE_FILE = "vector_store.json" # file to persist vector store across app runs
-VECTOR_STORE = []  # simple custom vector store in-memory
+# Set up vector store
+VECTOR_STORE_FILE = "vector_store.json"  # File to persist vector store across app runs
+VECTOR_STORE: List[dict] = []  # In-memory vector store
 
-def load_vector_store():
-    """Load vector store from JSON file."""
+# Load & Save Functions
+def load_vector_store() -> List[dict]:
+    """Load vector store from JSON file, handling empty or invalid files gracefully."""
     if os.path.exists(VECTOR_STORE_FILE):
         try:
+            if os.path.getsize(VECTOR_STORE_FILE) == 0:
+                print(f"{VECTOR_STORE_FILE} is empty — initializing empty vector store.")
+                return []
+
             with open(VECTOR_STORE_FILE, 'r') as f:
                 loaded_store = json.load(f)
                 print(f"Loaded vector store with {len(loaded_store)} entries from {VECTOR_STORE_FILE}")
                 return loaded_store
+
+        except json.JSONDecodeError:
+            print(f"{VECTOR_STORE_FILE} contains invalid JSON — initializing empty vector store.")
+            return []
+
         except Exception as e:
             print(f"Error loading vector store: {e}")
             return []
-    return []
+
+    else:
+        print(f"{VECTOR_STORE_FILE} not found — initializing empty vector store.")
+        return []
+
 
 def save_vector_store():
-    """Save vector store to JSON file."""
+    """Save vector store to JSON file, ensuring file exists and writes valid JSON."""
     try:
+        # Ensure directory exists (optional if storing in a subfolder)
+        os.makedirs(os.path.dirname(VECTOR_STORE_FILE) or '.', exist_ok=True)
+
+        # Write VECTOR_STORE as a JSON array (even if empty)
         with open(VECTOR_STORE_FILE, 'w') as f:
-            json.dump(VECTOR_STORE, f)
+            json.dump(VECTOR_STORE, f, indent=2)
+
         print(f"Vector store saved with {len(VECTOR_STORE)} entries to {VECTOR_STORE_FILE}")
+
     except Exception as e:
         print(f"Error saving vector store: {e}")
 
-# Initialize vector store on module import
+
+# Initialize vector store on app startup
 VECTOR_STORE = load_vector_store()
 
-## Driver Function ##
+# Ensure a valid JSON file exists even if empty
+if not os.path.exists(VECTOR_STORE_FILE) or len(VECTOR_STORE) == 0:
+    save_vector_store()
+
+## Driver Function for PDF ingestion ##
 def ingest_service_main(filenames: List[str], file_bytes_list: List[bytes]):
     """Main function to ingest PDFs and load into vector store."""
     results = []
@@ -127,7 +153,7 @@ def add_chunks_to_vector_store(chunks, file_name):
 
     for i in range(0, len(chunks), BATCH_SIZE):
         batch = chunks[i:i + BATCH_SIZE]
-        print(f"Embedding batch: {batch}")
+        # print(f"Embedding batch: {batch}")
 
         # Implement retry logic for rate limits / capacity errors
         MAX_RETRIES = 3
