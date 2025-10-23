@@ -3,8 +3,8 @@
 An application for PDF file ingestion and querying with RAG (Retrieval-Augmented Generation).
 
 Tech Stack:
-Language -> Python
-Frontend -> Streamlit
+Language -> Python  
+Frontend -> Streamlit  
 Backend -> FastAPI
 
 Architecture:
@@ -19,7 +19,7 @@ Rename the `.env.tpl` file in the `rag_app/` directory.
 cd rag_app/
 mv .env.tpl .env
 ```
-Fill in the Mistral_API_Key with your unique account key
+Fill in Mistral_API_Key= with your own unique account key
 
 ### Step 2: Run Rag App
 ```bash
@@ -28,22 +28,25 @@ cd rag_app
 ```
 
 This bash script will start both:
-- FastAPI server locally at FASTAPI_URL set in rag_app/.env
-- Streamlit UI locally at STREAMLIT_URL set in rag_app/.env
+- FastAPI server at FASTAPI_URL set in rag_app/.env
+- Streamlit UI at STREAMLIT_URL set in rag_app/.env
 
-### Step 3: Navigate to the Streamlit UI on your machine
+### Step 3: Navigate to the Streamlit UI on your machine at STREAMLIT_URL
 
 ### Step 4: Upload all PDF files present in pdf_files/ through UI
 [picture]
 
-### Step 5: Submit sample queries against PDF files through UI
+### Step 5: Submit sample queries in UI
 [picture]
 
 Sample Queries:
-Who is John Doe?
+What is a two-tier licensing state?
+Which countries is 'Doe' used in?
+Why is value over the long term important?
+How is customer obsession shown by Amazon?
 
 
-### Step 6: Read generated answer!
+### Step 6: Observe generated answers! You can trace the chunks being used to answer the questions by looking at 'query_log.json'
 
 
 ## Additional Information
@@ -69,14 +72,14 @@ store run the following command:
 ```
 
 ### Software Library Links
-[FastAPI](https://fastapi.tiangolo.com/) - Building backend API endpoints
-[Uvicorn](https://www.uvicorn.org/) - Serving ASGI apps (e.g., FastAPI)
-[Streamlit](https://streamlit.io/)- Interactive frontend apps, dashboards
-[Requests](https://requests.readthedocs.io/en/latest/) - Making HTTP calls from Python
-[PyPDF2](https://pypi.org/project/PyPDF2/) - Extracting text/merging PDFs
-[MistralAI (mistralai)](https://github.com/mistralai/client-python) - Using Mistral AI models (chat/embeddings)
-[python-dotenv](https://pypi.org/project/python-dotenv/) - Loading .env into os.environ
-[python-multipart](https://pypi.org/project/python-multipart/) - Handling file uploads
+[FastAPI](https://fastapi.tiangolo.com/) - Building backend API endpoints  
+[Uvicorn](https://www.uvicorn.org/) - Serving ASGI apps (e.g., FastAPI)  
+[Streamlit](https://streamlit.io/)- Interactive frontend apps, dashboards  
+[Requests](https://requests.readthedocs.io/en/latest/) - Making HTTP calls from Python  
+[PyPDF2](https://pypi.org/project/PyPDF2/) - Extracting text from PDFs
+[MistralAI (mistralai)](https://github.com/mistralai/client-python) - Using Mistral AI models (chat/embeddings)  
+[python-dotenv](https://pypi.org/project/python-dotenv/) - Loading .env into os.environ  
+[python-multipart](https://pypi.org/project/python-multipart/) - Handling file uploads  
 
 
 ### API Usage (Terminal) - Hit FastAPI endpoints directly
@@ -96,5 +99,5 @@ curl -X POST "${FASTAPI_URL}/ingest/" \
 ```bash
 curl -X POST "${FASTAPI_URL}/query/" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "question=What legal case is discussed"
+  -d "question=What is a two-tier licensing state"
 ```
