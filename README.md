@@ -39,7 +39,7 @@ This bash script will start both:
 
 ### Step 3: Navigate to the Streamlit UI on your machine at STREAMLIT_URL
 
-### Step 4: Upload all PDF files present in pdf_files/ through UI
+### Step 4: Upload all PDF files present in `pdf_files/` through UI
 
 Click 'Browse Files' to select all files
 ![PDF Upload](assets/pdf_upload.png)
