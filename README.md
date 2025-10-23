@@ -71,6 +71,7 @@ enhanced traceability as to which chunks are contributing to answer. To clear th
 run the following command:
 
 ```bash
+cd rag_app/
 : > query_log.json
 ```
 
@@ -80,6 +81,7 @@ File chunks are persisted to 'vector_store.json' upon ingestion. To empty the cu
 store run the following command:
 
 ```bash
+cd rag_app/
 : > vector_store.json
 ```
 
