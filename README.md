@@ -2,7 +2,7 @@
 
 An application for PDF file ingestion and querying with RAG (Retrieval-Augmented Generation).
 
-Tech Stack:
+Tech Stack:  
 Language -> Python  
 Frontend -> Streamlit  
 Backend -> FastAPI
