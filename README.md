@@ -90,7 +90,7 @@ cd rag_app/
 [Uvicorn](https://www.uvicorn.org/) - Serving ASGI apps (e.g., FastAPI)  
 [Streamlit](https://streamlit.io/)- Interactive frontend apps, dashboards  
 [Requests](https://requests.readthedocs.io/en/latest/) - Making HTTP calls from Python  
-[PyPDF2](https://pypi.org/project/PyPDF2/) - Extracting text from PDFs
+[PyPDF2](https://pypi.org/project/PyPDF2/) - Extracting text from PDFs  
 [MistralAI (mistralai)](https://github.com/mistralai/client-python) - Using Mistral AI models (chat/embeddings)  
 [python-dotenv](https://pypi.org/project/python-dotenv/) - Loading .env into os.environ  
 [python-multipart](https://pypi.org/project/python-multipart/) - Handling file uploads  
