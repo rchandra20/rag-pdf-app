@@ -15,11 +15,10 @@ def query_service_main(query: str):
     if not VECTOR_STORE:
         return {"answer": "Vector store is empty. Please upload PDFs first."}
     
+   
     # Detect the intent of the query
-    eval_query(query)
-
-    # Provide a default greeting if kb search not needed
     if not eval_query(query):
+        # Provide a default greeting if kb search not needed
         return {"answer": "Hello from the RAG App! To query the knowledge base, please provide a specific question."}
 
     else:
@@ -35,9 +34,9 @@ def query_service_main(query: str):
         retrieved_chunks = hybrid_search(
             query, 
             query_embedding,
-            5, # top_k
-            0.7, # Semantic weight in score
-            0.3 # Keyword weight in score
+            3, # top_k
+            0.7, # Semantic weight in combined score
+            0.3 # Keyword weight in combined score
         )
 
         # Post-process results to improve ranking
@@ -88,7 +87,7 @@ def eval_query(query_text: str) -> bool:
         ],
     )
 
-    print("Response from intent model:", chat_response)
+    # print("Response from intent model:", chat_response)
 
     decision = chat_response.choices[0].message.content
 
@@ -325,13 +324,12 @@ def generate_final_answer(query_text, results):
     from app.main import MISTRAL_CLIENT, LANGUAGE_MODEL
 
     if not results:
-        return "I couldn't find relevant information to answer your question in the knowledge base."
-
+        return None
     # Prepare context from retrieved chunks
     context_chunks = []
     sources = []
 
-    print(f"Final Chunk Results: {results}")
+    # print(f"Final Chunk Results: {results}")
     
     for result in results:
         source_file = result.get('source_file', 'Unknown source')
@@ -373,7 +371,7 @@ Now, provide a concise answer to the user's question based on the retrieved info
         ],
     )
 
-    print("Response from generation model:", chat_response)
+    # print("Response from generation model:", chat_response)
 
     generated_answer = chat_response.choices[0].message.content
     
@@ -386,26 +384,24 @@ Now, provide a concise answer to the user's question based on the retrieved info
         "retrieved_chunks": [cid for r in results for cid in r['chunk_ids']]
     }
     
+    log_file = "query_log.json"
     try:
-        log_file = "query_log.json"
-        # Load existing logs or create new list
-        if os.path.exists(log_file):
+        if os.path.exists(log_file) and os.path.getsize(log_file) > 0:
             with open(log_file, 'r') as f:
                 logs = json.load(f)
         else:
             logs = []
-        
-        # Append new log entry
+
         logs.append(query_log)
-        
-        # Save back to file
+
         with open(log_file, 'w') as f:
             json.dump(logs, f, indent=2)
-            
+
         print(f"Query logged to {log_file}")
     except Exception as e:
         print(f"Error logging query: {e}")
-    
+        
+    # Object passed to Streamlit UI for extraction
     return {
         "answer": generated_answer,
         "sources": sources,

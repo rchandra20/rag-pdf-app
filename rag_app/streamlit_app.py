@@ -53,11 +53,6 @@ if uploaded_files:
                         result = response.json()
                         st.sidebar.success("Files ingested successfully!")
                         
-                        # Display results
-                        with st.expander("Ingestion Results"):
-                            if "processed_files" in result:
-                                for file_result in result["processed_files"]:
-                                    st.write(f"**{file_result['filename']}**: {file_result['num_chunks']} chunks processed")
                     else:
                         st.sidebar.error(f"Error: {response.text}")
                         
@@ -85,7 +80,7 @@ except Exception as e:
     st.sidebar.error("Error reading vector store")
 
 # Main query interface
-st.header2("Query Your Knowledge Base")
+st.header("Query Your Knowledge Base")
 
 # Query input
 query_text = st.text_area(
@@ -115,17 +110,13 @@ if submit_button and query_text.strip():
                 
                 # Display the answer
                 st.subheader("Answer:")
-                st.write(result.get("answer", "No answer generated"))
-                
-                # # Display useful metadata if available
-                if "sources" in result and result["sources"]:
-                    st.subheader("Sources:")
-                    for source in result["sources"]:
-                        st.write(f"• {source}")
+                st.write(result.get("answer", "No answer was able to generated. Try a different question."))
                 
                 if "retrieved_chunks" in result:
                     st.info(f"Retrieved chunks with id: {result['retrieved_chunks']}")
-                    
+                
+
+                
             else:
                 st.error(f"Error: {response.text}")
                 

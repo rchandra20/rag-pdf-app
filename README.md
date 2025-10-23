@@ -8,13 +8,20 @@ Frontend -> Streamlit
 Backend -> FastAPI
 
 Architecture:
-![RAG App Architecture](arch.png)
+![RAG App Architecture](assets/arch.png)
 
 ## Quick Start
 
+
+### Step 0: Install libraries in 'requirements.txt'
+
+```bash
+pip3 install -r requirements.txt
+```
+
 ### Step 1: Environment Configuration
 
-Rename the `.env.tpl` file in the `rag_app/` directory. 
+Rename the `.env.tpl` file in the `rag_app/` directory to `.env`
 ```bash
 cd rag_app/
 mv .env.tpl .env
@@ -23,7 +30,6 @@ Fill in Mistral_API_Key= with your own unique account key
 
 ### Step 2: Run Rag App
 ```bash
-cd rag_app
 ./run.sh
 ```
 
@@ -34,19 +40,25 @@ This bash script will start both:
 ### Step 3: Navigate to the Streamlit UI on your machine at STREAMLIT_URL
 
 ### Step 4: Upload all PDF files present in pdf_files/ through UI
-[picture]
+
+Click 'Browse Files' to select all files
+![PDF Upload](assets/pdf_upload.png)
+
+Click 'Ingest Files' to load into vector store
+![File Ingestion](assets/ingest_files.png)
 
 ### Step 5: Submit sample queries in UI
-[picture]
+![Query Submission](assets/query_submit.png)
 
 Sample Queries:
-What is a two-tier licensing state?
-Which countries is 'Doe' used in?
-Why is value over the long term important?
-How is customer obsession shown by Amazon?
+1. What is a two-tier licensing state?
+2. Which countries is 'Doe' used in?
+3. Why is value over the long term important?
+4. How is customer obsession shown by Amazon?
 
+### Step 6: Observe generated answers! You can use the chunk ids to trace the chunks being used by looking at 'query_log.json'
 
-### Step 6: Observe generated answers! You can trace the chunks being used to answer the questions by looking at 'query_log.json'
+![Generated Answer](assets/generated_answer.png)
 
 
 ## Additional Information
@@ -59,7 +71,7 @@ enhanced traceability as to which chunks are contributing to answer. To clear th
 run the following command:
 
 ```bash
-> query_log.json
+: > query_log.json
 ```
 
 ### Vector Store
@@ -68,7 +80,7 @@ File chunks are persisted to 'vector_store.json' upon ingestion. To empty the cu
 store run the following command:
 
 ```bash
-> vector_store.json
+: > vector_store.json
 ```
 
 ### Software Library Links
@@ -82,9 +94,10 @@ store run the following command:
 [python-multipart](https://pypi.org/project/python-multipart/) - Handling file uploads  
 
 
-### API Usage (Terminal) - Hit FastAPI endpoints directly
+### API Usage (Separate Terminal) - Hit FastAPI endpoints directly
 
 ```bash
+cd rag_app/
 export FASTAPI_URL=http://localhost:8000
 ```
 
